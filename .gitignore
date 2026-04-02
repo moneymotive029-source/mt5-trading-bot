@@ -1,0 +1,73 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Environment Variables
+.env
+*.env
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Trading Logs
+*.log
+trades/
+logs/
+
+# Temporary files
+*.tmp
+temp/
+
+# Claude session data (exclude all UUID folders)
+*.jsonl
+[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]-[0-9a-f][0-9a-f][0-9a-f][0-9a-f]-[0-9a-f][0-9a-f][0-9a-f][0-9a-f]-[0-9a-f][0-9a-f][0-9a-f][0-9a-f]-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/
+
+# Memory (keep in .env.example only)
+memory/
+
+# Standalone trade scripts (use auto_trades/ instead)
+bitcoin_sell.py
+bitcoin_trade.py
+crudeoil_trade.py
+gold_analysis.py
+silver_analysis.py
+silver_trade.py
+silver_sltp.py
+bitcoin_sltp.py
+mt5_sell_order.py
+execute_buy.py
+execute_sell.py
+sell_gold.py
