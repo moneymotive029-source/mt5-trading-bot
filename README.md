@@ -138,35 +138,6 @@ Each auto-trade script includes:
 - **Position Size**: Calculated via Kelly Criterion (fractional)
 - **Risk/Reward**: Minimum 1:1.5
 
-## Example: Gold Trade Output
-
-```
-======================================================================
-GOLD (XAUUSD) - AUTO-EXECUTION
-======================================================================
-
-Account: 107069198 | Balance: $9531.41 | Equity: $9393.79
-
-GOLD: Bid $4675.84 | Ask $4676.24 | Spread $0.40
-
-TRADE PARAMETERS
---------------------------------------------------
-Direction: SELL
-Entry: $4676.24
-Stop Loss: $4762.00
-Take Profit 1: $4546.00
-Position Size: 0.15 lots
-Risk/Reward: 1:1.5
-
-[OK] ORDER FILLED!
-  Ticket: 57970123
-  SELL 0.15 GOLD @ $4675.84
-
-[OK] SL/TP SET SUCCESSFULLY!
-  Stop Loss: $4762.00
-  Take Profit: $4546.00
-```
-
 ## Disclaimer
 
 **This software is for educational purposes only.**
@@ -191,4 +162,3 @@ MIT License - See LICENSE file for details.
 
 For issues and questions:
 - GitHub Issues: https://github.com/moneymotive029-source/mt5-trading-bot/issues
-- Email: moneymotive029-source@github
