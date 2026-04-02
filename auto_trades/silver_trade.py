@@ -1,214 +1,240 @@
+"""
+Silver (XAGUSD) Auto-Execution Script
+Based on comprehensive trading analysis
+
+Usage:
+    python silver_trade.py [--symbol SILVER] [--direction BUY] [--volume 0.5] [--sl 28.50] [--tp 31.50]
+"""
+
 import MetaTrader5 as mt5
-import pandas as pd
+import time
+import argparse
 
-# Connect to AvaTrade MT5
-mt5.initialize(login=107069198, password='D@5qZuUd', server='Ava-Demo 1-MT5')
-mt5.symbol_select('SILVER', True)
-
-print('=' * 60)
-print('SILVER (XAGUSD) COMPREHENSIVE TRADING ANALYSIS')
-print('=' * 60)
-print()
-
-# Get current price
-tick = mt5.symbol_info_tick('SILVER')
-print(f'Current Price: Bid ${tick.bid:.2f} | Ask ${tick.ask:.2f} | Spread ${tick.ask-tick.bid:.3f}')
-print()
-
-# Get H4 historical data
-df = pd.DataFrame(mt5.copy_rates_from_pos('SILVER', mt5.TIMEFRAME_H4, 0, 200))
-df['time'] = pd.to_datetime(df['time'], unit='s')
-
-price = df['close'].iloc[-1]
-h4_high = df['high'].max()
-h4_low = df['low'].min()
-
-# ATR
-high_low = df['high'] - df['low']
-high_close = abs(df['high'] - df['close'].shift())
-low_close = abs(df['low'] - df['close'].shift())
-ranges = pd.concat([high_low, high_close, low_close], axis=1)
-true_range = ranges.max(axis=1)
-atr = true_range.rolling(14).mean().iloc[-1]
-
-# RSI
-delta = df['close'].diff()
-gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-rs = gain / loss
-rsi = 100 - (100 / (1 + rs))
-rsi_val = rsi.iloc[-1]
-
-# MACD
-exp1 = df['close'].ewm(span=12).mean()
-exp2 = df['close'].ewm(span=26).mean()
-macd = exp1 - exp2
-macd_signal = macd.ewm(span=9).mean()
-
-# Moving Averages
-sma20 = df['close'].rolling(20).mean().iloc[-1]
-sma50 = df['close'].rolling(50).mean().iloc[-1]
-
-# Recent levels
-recent_high = df['high'].rolling(20).max().iloc[-1]
-recent_low = df['low'].rolling(20).min().iloc[-1]
-
-print('CURRENT MARKET DATA')
-print('-' * 40)
-print(f'Price: ${price:.2f}')
-print(f'H4 Range: ${h4_low:.2f} - ${h4_high:.2f}')
-print(f'ATR (14): ${atr:.2f}')
-print()
-
-print('TECHNICAL INDICATORS')
-print('-' * 40)
-rsi_state = "Overbought" if rsi_val > 70 else "Oversold" if rsi_val < 30 else "Neutral"
-print(f'RSI (14): {rsi_val:.2f} - {rsi_state}')
-print(f'MACD: {macd.iloc[-1]:.2f} | Signal: {macd_signal.iloc[-1]:.2f}')
-print(f'MACD Histogram: {macd.iloc[-1] - macd_signal.iloc[-1]:.2f}')
-print()
-
-print('KEY LEVELS')
-print('-' * 40)
-print(f'Resistance: ${recent_high:.2f}')
-print(f'Support: ${recent_low:.2f}')
-print()
-
-print('TREND')
-print('-' * 40)
-print(f'vs SMA20: {"Above" if price > sma20 else "Below"} (${sma20:.2f})')
-print(f'vs SMA50: {"Above" if price > sma50 else "Below"} (${sma50:.2f})')
-print()
-
-# Signal generation
-bullish = 0
-bearish = 0
-if rsi_val < 30: bullish += 1
-if rsi_val > 70: bearish += 1
-if macd.iloc[-1] > macd_signal.iloc[-1]: bullish += 1
-else: bearish += 1
-if price > sma20: bullish += 1
-else: bearish += 1
-if price > sma50: bullish += 1
-else: bearish += 1
-
-if bullish > bearish + 1:
-    direction = 'BUY'
-elif bearish > bullish + 1:
-    direction = 'SELL'
-else:
-    direction = 'BUY' if macd.iloc[-1] > macd_signal.iloc[-1] else 'SELL'
-
-# Trade setup
-if direction == 'BUY':
-    sl = price - (atr * 2)
-    tp = price + (atr * 3)
-else:
-    sl = price + (atr * 2)
-    tp = price - (atr * 3)
-
-# Account info
-acc = mt5.account_info()
-balance = acc.balance
-risk_amount = balance * 0.02
-risk_points = abs(price - sl)
-# Silver: ~$0.01 move = ~$10 per standard lot
-position_size = round(risk_amount / (risk_points * 1000), 2)
-position_size = max(0.1, min(position_size, 5.0))
-
-print('SIGNAL SUMMARY')
-print('-' * 40)
-print(f'Direction: {direction}')
-print(f'Confidence: {"High" if abs(bullish-bearish) >= 2 else "Medium"}')
-print(f'Bullish: {bullish} | Bearish: {bearish}')
-print()
-
-print('RECOMMENDED TRADE')
-print('-' * 40)
-print(f'{direction} {position_size} lots SILVER')
-print(f'Entry: ${price:.2f}')
-print(f'SL: ${sl:.2f}')
-print(f'TP: ${tp:.2f}')
-print(f'Risk/Reward: 1:{abs(tp-price)/abs(price-sl):.1f}')
-print()
-
-# FUNDAMENTAL CONTEXT
-print('FUNDAMENTAL CONTEXT')
-print('-' * 40)
-print('Silver/Gold Ratio: ~52 (historically bullish for silver)')
-print('Industrial Demand: Solar panels, EVs, electronics growing')
-print('Supply Deficit: 3rd year of structural deficit')
-print('Green Energy: Major driver for future demand')
-print()
-
-print('=' * 60)
-print('AUTO-EXECUTION')
-print('=' * 60)
-print(f'DIRECTION: {direction}')
-print(f'VOLUME: {position_size} lots')
-print(f'ENTRY: {tick.bid if direction == "SELL" else tick.ask}')
-print(f'SL: {sl:.2f}')
-print(f'TP: {tp:.2f}')
-print('=' * 60)
-
-# EXECUTE THE TRADE
-print()
-print('EXECUTING TRADE...')
-
-# Place order
-order_type = mt5.ORDER_TYPE_SELL if direction == 'SELL' else mt5.ORDER_TYPE_BUY
-exec_price = tick.bid if direction == 'SELL' else tick.ask
-
-request = {
-    'action': mt5.TRADE_ACTION_DEAL,
-    'symbol': 'SILVER',
-    'volume': position_size,
-    'type': order_type,
-    'price': exec_price,
-    'deviation': 50,
-    'magic': 234000,
-    'comment': 'Auto-executed after analysis',
-    'type_time': mt5.ORDER_TIME_GTC,
-    'type_filling': mt5.ORDER_FILLING_FOK,
+# MT5 Configuration
+MT5_CONFIG = {
+    "login": 107069198,
+    "password": "D@5qZuUd",
+    "server": "Ava-Demo 1-MT5"
 }
 
-result = mt5.order_send(request)
+def connect():
+    """Initialize MT5 connection with retry"""
+    for i in range(3):
+        if mt5.initialize(**MT5_CONFIG):
+            return True
+        time.sleep(1)
+    return False
 
-if result and result.retcode == mt5.TRADE_RETCODE_DONE:
-    print(f'[OK] ORDER FILLED!')
-    print(f'  Ticket: {result.order}')
-    print(f'  {direction} {result.volume} @ ${result.price:.2f}')
-
-    # Set SL/TP
-    import time
-    time.sleep(0.5)
-
-    sl_request = {
-        'action': mt5.TRADE_ACTION_SLTP,
-        'symbol': 'SILVER',
-        'position': result.position,
-        'sl': sl,
-        'tp': tp,
+def get_symbol_info(symbol):
+    """Get symbol specifications"""
+    info = mt5.symbol_info(symbol)
+    if info is None:
+        return None
+    return {
+        "name": info.name,
+        "digits": info.digits,
+        "point": info.point,
+        "volume_min": info.volume_min,
+        "volume_max": info.volume_max,
+        "volume_step": info.volume_step,
+        "trade_allowed": info.trade_allowed,
+        "spread": info.spread,
     }
 
-    sl_result = mt5.order_send(sl_request)
+def normalize_volume(symbol, volume):
+    """Normalize volume to broker's lot size requirements"""
+    info = get_symbol_info(symbol)
+    if info is None:
+        return volume
+    volume = round(volume / info["volume_step"]) * info["volume_step"]
+    volume = max(info["volume_min"], min(volume, info["volume_max"]))
+    return round(volume, 2)
 
-    if sl_result and sl_result.retcode == mt5.TRADE_RETCODE_DONE:
-        print(f'[OK] SL/TP SET!')
-        print(f'  Stop Loss: ${sl:.2f}')
-        print(f'  Take Profit: ${tp:.2f}')
-    else:
-        print(f'⚠ SL/TP pending: {sl_result.comment if sl_result else "Unknown"}')
+def execute_order(symbol, direction, volume, price, deviation=50):
+    """Execute order with multiple filling mode fallback"""
+    order_type = mt5.ORDER_TYPE_SELL if direction == "SELL" else mt5.ORDER_TYPE_BUY
+    filling_modes = [
+        (mt5.ORDER_FILLING_FOK, "FOK"),
+        (mt5.ORDER_FILLING_RETURN, "RETURN"),
+        (mt5.ORDER_FILLING_IOC, "IOC"),
+    ]
 
+    result = None
+    for filling_mode, mode_name in filling_modes:
+        request = {
+            "action": mt5.TRADE_ACTION_DEAL,
+            "symbol": symbol,
+            "volume": volume,
+            "type": order_type,
+            "price": price,
+            "deviation": deviation,
+            "magic": 234000,
+            "comment": "Silver Auto-Execution",
+            "type_time": mt5.ORDER_TIME_GTC,
+            "type_filling": filling_mode,
+        }
+        result = mt5.order_send(request)
+        if result and result.retcode == mt5.TRADE_RETCODE_DONE:
+            print(f"[OK] {mode_name} filling mode succeeded")
+            break
+        else:
+            retcode = result.retcode if result else "None"
+            comment = result.comment if result else "None"
+            print(f"  {mode_name}: Retcode {retcode} | {comment}")
+    return result
+
+def set_sltp(symbol, position_ticket, sl, tp):
+    """Set Stop Loss and Take Profit"""
+    request = {
+        "action": mt5.TRADE_ACTION_SLTP,
+        "symbol": symbol,
+        "position": position_ticket,
+        "sl": sl,
+        "tp": tp,
+    }
+    result = mt5.order_send(request)
+    return result
+
+def main():
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Silver Auto-Execution Script")
+    parser.add_argument("--symbol", type=str, default="SILVER", help="Trading symbol (default: SILVER)")
+    parser.add_argument("--direction", type=str, default="BUY", choices=["BUY", "SELL"], help="Trade direction")
+    parser.add_argument("--volume", type=float, default=0.5, help="Lot size")
+    parser.add_argument("--sl", type=float, default=None, help="Stop Loss price")
+    parser.add_argument("--tp", type=float, default=None, help="Take Profit price")
+    parser.add_argument("--deviation", type=int, default=50, help="Max slippage in points")
+    args = parser.parse_args()
+
+    # Connect to MT5
+    print("=" * 70)
+    print(f"SILVER AUTO-EXECUTION: {args.symbol}")
+    print("=" * 70)
     print()
-    print('TRADE SUMMARY')
-    print('-' * 40)
-    print(f'{direction} {result.volume} SILVER @ ${result.price:.2f}')
-    print(f'SL: ${sl:.2f} (Risk: ${risk_amount:.2f})')
-    print(f'TP: ${tp:.2f} (Reward: ${risk_amount * 1.5:.2f})')
-else:
-    print(f'❌ ORDER FAILED')
-    print(f'  Retcode: {result.retcode if result else "None"}')
-    print(f'  Comment: {result.comment if result else "None"}')
 
-mt5.shutdown()
+    if not connect():
+        print("[ERROR] Failed to connect to MT5")
+        return
+
+    # Get account info
+    acc = mt5.account_info()
+    if acc is None:
+        print("[ERROR] Failed to get account info")
+        mt5.shutdown()
+        return
+
+    print(f"Account: {acc.login} | Balance: ${acc.balance:.2f} | Equity: ${acc.equity:.2f}")
+    print()
+
+    # Select symbol
+    mt5.symbol_select(args.symbol, True)
+    time.sleep(0.5)
+
+    # Get symbol info
+    info = get_symbol_info(args.symbol)
+    if info is None:
+        print(f"[ERROR] Symbol {args.symbol} not found")
+        mt5.shutdown()
+        return
+
+    print(f"Symbol: {info['name']} | Digits: {info['digits']} | Spread: {info['spread']} points")
+    print(f"Min Lot: {info['volume_min']} | Max Lot: {info['volume_max']} | Step: {info['volume_step']}")
+    print()
+
+    # Get current price
+    tick = mt5.symbol_info_tick(args.symbol)
+    if tick is None or tick.bid == 0:
+        print(f"[ERROR] No price data for {args.symbol}")
+        mt5.shutdown()
+        return
+
+    print(f"Current Price: Bid ${tick.bid:.{info['digits']}f} | Ask ${tick.ask:.{info['digits']}f}")
+    print()
+
+    # Check existing position
+    positions = mt5.positions_get(symbol=args.symbol)
+    if positions:
+        print(f"[!] Existing position found for {args.symbol} - skipping duplicate entry")
+        for pos in positions:
+            pos_type = "BUY" if pos.type == 0 else "SELL"
+            print(f"    {pos_type} {pos.volume} @ ${pos.price_open:.{info['digits']}f} | P/L: ${pos.profit:.2f}")
+        mt5.shutdown()
+        return
+
+    # Trade parameters - update based on analysis
+    DIRECTION = args.direction
+    ENTRY_PRICE = tick.bid if DIRECTION == "SELL" else tick.ask
+
+    # Default SL/TP if not provided (based on Silver volatility ~2 points SL, ~3 points TP)
+    if args.sl is None:
+        STOP_LOSS = ENTRY_PRICE - 2.0 if DIRECTION == "BUY" else ENTRY_PRICE + 2.0
+    else:
+        STOP_LOSS = args.sl
+
+    if args.tp is None:
+        TAKE_PROFIT = ENTRY_PRICE + 3.0 if DIRECTION == "BUY" else ENTRY_PRICE - 3.0
+    else:
+        TAKE_PROFIT = args.tp
+
+    # Position sizing: 2% risk
+    risk_amount = acc.balance * 0.02
+    risk_points = abs(ENTRY_PRICE - STOP_LOSS)
+    position_size = round(risk_amount / (risk_points * 100), 2)  # Silver: ~$100 per 0.01 lot per $1
+    position_size = max(0.01, min(position_size, 1.0))
+
+    print("TRADE PARAMETERS")
+    print("-" * 50)
+    print(f"Direction: {DIRECTION}")
+    print(f"Entry: ${ENTRY_PRICE:.{info['digits']}f}")
+    print(f"Stop Loss: ${STOP_LOSS:.{info['digits']}f}")
+    print(f"Take Profit: ${TAKE_PROFIT:.{info['digits']}f}")
+    print(f"Position Size: {position_size} lots")
+    print(f"Risk Amount: ${risk_amount:.2f}")
+    print(f"Risk/Reward: 1:{abs(TAKE_PROFIT-ENTRY_PRICE)/risk_points:.1f}")
+    print()
+
+    # Execute order
+    print(f"EXECUTING {DIRECTION} ORDER...")
+    result = execute_order(args.symbol, DIRECTION, position_size, ENTRY_PRICE, args.deviation)
+    print()
+
+    if result and result.retcode == mt5.TRADE_RETCODE_DONE:
+        print("[OK] ORDER FILLED!")
+        print(f"  Ticket: {result.order}")
+        print(f"  {DIRECTION} {result.volume} {args.symbol} @ ${result.price:.{info['digits']}f}")
+        print()
+
+        time.sleep(1)
+
+        # Set SL/TP
+        positions = mt5.positions_get(symbol=args.symbol)
+        if positions:
+            pos = positions[0]
+            print("SETTING SL/TP...")
+            sltp_result = set_sltp(args.symbol, pos.ticket, STOP_LOSS, TAKE_PROFIT)
+
+            if sltp_result and sltp_result.retcode == mt5.TRADE_RETCODE_DONE:
+                print("[OK] SL/TP SET SUCCESSFULLY!")
+                print(f"  Stop Loss: ${STOP_LOSS:.{info['digits']}f}")
+                print(f"  Take Profit: ${TAKE_PROFIT:.{info['digits']}f}")
+            else:
+                print(f"[!] SL/TP pending: {sltp_result.comment if sltp_result else 'Unknown'}")
+
+        print()
+        print("=" * 70)
+        print("TRADE SUMMARY")
+        print("=" * 70)
+        print(f"{DIRECTION} {position_size} {args.symbol} @ ${ENTRY_PRICE:.{info['digits']}f}")
+        print(f"SL: ${STOP_LOSS:.{info['digits']}f} | TP: ${TAKE_PROFIT:.{info['digits']}f}")
+        print(f"Risk: ${risk_amount:.2f} | R/R: 1:{abs(TAKE_PROFIT-ENTRY_PRICE)/risk_points:.1f}")
+        print("=" * 70)
+    else:
+        print("[ERROR] ORDER FAILED")
+        if result:
+            print(f"  Retcode: {result.retcode}")
+            print(f"  Comment: {result.comment}")
+
+    mt5.shutdown()
+
+if __name__ == "__main__":
+    main()

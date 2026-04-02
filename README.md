@@ -20,20 +20,20 @@ mt5-trading-bot/
 │   └── mt5_trading.py          # Core MT5 trading module
 ├── auto_trades/
 │   ├── universal_trade.py      # Universal script for ANY MT5 symbol
-│   ├── gold_trade.py           # Gold auto-execution script
-│   ├── silver_trade.py         # Silver auto-execution script
-│   ├── bitcoin_trade.py        # Bitcoin auto-execution script
-│   └── crudeoil_trade.py       # Crude Oil auto-execution script
+│   ├── gold_trade.py           # Gold script (universal - accepts --symbol)
+│   ├── silver_trade.py         # Silver script (universal - accepts --symbol)
+│   ├── bitcoin_trade.py        # Bitcoin script (universal - accepts --symbol)
+│   └── crudeoil_trade.py       # Crude Oil script (universal - accepts --symbol)
 ├── analysis/
-│   ├── gold_analysis.py        # Gold analysis script
-│   └── silver_analysis.py      # Silver analysis script
+│   ├── gold_analysis.py        # Universal analysis (accepts --symbol, --timeframe)
+│   └── silver_analysis.py      # Universal analysis (accepts --symbol, --timeframe)
 ├── helpers/
-│   ├── mt5_sell_order.py       # SELL order helper
-│   ├── execute_buy.py          # BUY order helper
-│   └── execute_sell.py         # SELL order helper
+│   ├── mt5_sell_order.py       # Universal SELL order helper (any symbol)
+│   ├── execute_buy.py          # Universal BUY order helper (any symbol)
+│   └── execute_sell.py         # Universal SELL order helper (any symbol)
 ├── sltp/
-│   ├── silver_sltp.py          # Silver SL/TP setter
-│   ├── bitcoin_sltp.py         # Bitcoin SL/TP setter
+│   ├── silver_sltp.py          # Universal SL/TP setter (any symbol)
+│   ├── bitcoin_sltp.py         # Universal SL/TP setter (any symbol)
 │   └── crudeoil_sltp.py        # Crude Oil SL/TP setter
 ├── .env.example                # Environment variables template
 ├── requirements.txt            # Python dependencies
@@ -90,30 +90,73 @@ python auto_trades/universal_trade.py --symbol EURUSD --direction SELL --volume 
 python auto_trades/universal_trade.py --symbol WTICrude --direction BUY --volume 0.1 --sl 76.50 --tp 85.00
 ```
 
-**Asset-Specific Scripts (Pre-configured):**
+**Asset-Specific Scripts (Now Universal - Accept CLI Arguments):**
+
+All asset-specific scripts now accept `--symbol`, `--direction`, `--volume`, `--sl`, and `--tp` arguments:
 
 ```bash
-# Gold
-python auto_trades/gold_trade.py
+# Gold (default: GOLD, customizable)
+python auto_trades/gold_trade.py --symbol GOLD --direction SELL --volume 0.1 --sl 4762 --tp 4546
 
-# Silver
-python auto_trades/silver_trade.py
+# Silver (default: SILVER, customizable)
+python auto_trades/silver_trade.py --symbol SILVER --direction BUY --volume 0.5 --sl 28.50 --tp 31.50
 
-# Bitcoin
-python auto_trades/bitcoin_trade.py
+# Bitcoin (default: BTCUSD, customizable)
+python auto_trades/bitcoin_trade.py --symbol BTCUSD --direction BUY --volume 0.01 --sl 63500 --tp 72800
 
-# Crude Oil
-python auto_trades/crudeoil_trade.py
+# Crude Oil (default: WTICrude, customizable)
+python auto_trades/crudeoil_trade.py --symbol WTICrude --direction BUY --volume 0.1 --sl 76.50 --tp 85.00
+```
+
+### Run Trading Analysis
+
+**Universal Analysis Scripts (Works with ANY symbol):**
+
+```bash
+# Gold analysis
+python analysis/gold_analysis.py --symbol GOLD
+
+# Bitcoin analysis  
+python analysis/gold_analysis.py --symbol BTCUSD
+
+# Forex analysis
+python analysis/silver_analysis.py --symbol EURUSD
+
+# Custom timeframe
+python analysis/gold_analysis.py --symbol GOLD --timeframe D1
+```
+
+### Execute Individual Orders
+
+**Helper Scripts (Universal - Any Symbol):**
+
+```bash
+# BUY order
+python helpers/execute_buy.py --symbol GOLD --volume 0.1 --sl 4554 --tp 4880
+
+# SELL order
+python helpers/execute_sell.py --symbol BTCUSD --volume 0.01 --sl 60000 --tp 72000
+
+# Alternative SELL helper
+python helpers/mt5_sell_order.py --symbol SILVER --volume 0.5 --sl 28.00 --tp 31.00
 ```
 
 ### Set Stop Loss / Take Profit
 
-```bash
-# Silver
-python sltp/silver_sltp.py
+**Universal SL/TP Setter (Works with ANY symbol):**
 
-# Bitcoin
-python sltp/bitcoin_sltp.py
+```bash
+# Silver position
+python sltp/silver_sltp.py --symbol SILVER --sl 28.50 --tp 31.50
+
+# Bitcoin position
+python sltp/bitcoin_sltp.py --symbol BTCUSD --sl 63500 --tp 72800
+
+# Gold position
+python sltp/silver_sltp.py --symbol GOLD --sl 4600 --tp 4750
+
+# Any MT5 symbol
+python sltp/silver_sltp.py --symbol EURUSD --sl 1.0850 --tp 1.0950
 ```
 
 ## Auto-Execution Workflow
@@ -136,13 +179,18 @@ python sltp/bitcoin_sltp.py
 
 ## Supported Assets
 
-| Asset | Symbol | Typical Spread | Digits |
-|-------|--------|----------------|--------|
-| Gold | GOLD | ~0.40 | 2 |
-| Silver | SILVER | ~0.03 | 3 |
-| Bitcoin | BTCUSD | ~25-30 | 2 |
-| WTI Crude | WTICrude | ~0.03 | 2 |
-| Brent Oil | BRENT_OIL | ~0.05 | 2 |
+**All scripts now work with ANY symbol available on your MT5 broker:**
+
+| Category | Examples | Symbols |
+|----------|----------|---------|
+| **Forex** | EUR/USD, GBP/USD, USD/JPY | EURUSD, GBPUSD, USDJPY |
+| **Metals** | Gold, Silver, Platinum | GOLD, SILVER, XPTUSD |
+| **Crypto** | Bitcoin, Ethereum | BTCUSD, ETHUSD |
+| **Energy** | WTI Crude, Brent Oil | WTICrude, BRENT_OIL |
+| **Indices** | US30, NAS100, SPX500 | US30, NAS100, SPX500 |
+| **Stocks** | Apple, Tesla, Microsoft | AAPL, TSLA, MSFT |
+
+Use `python core/mt5_trading.py --list-symbols` to see all available symbols on your broker.
 
 ## Trading Signals
 

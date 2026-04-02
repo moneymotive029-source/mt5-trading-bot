@@ -1,66 +1,162 @@
+"""
+Universal MT5 SELL Order Helper
+Works with ANY symbol on MetaTrader 5
+
+Usage:
+    python execute_sell.py --symbol GOLD --volume 0.15 --sl 4762 --tp 4546
+    python execute_sell.py --symbol BTCUSD --volume 0.01 --sl 70000 --tp 60000
+"""
+
 import MetaTrader5 as mt5
+import time
+import argparse
 
-mt5.initialize(login=107069198, password='D@5qZuUd', server='Ava-Demo 1-MT5')
-mt5.symbol_select('GOLD', True)
-
-tick = mt5.symbol_info_tick('GOLD')
-
-print('=' * 60)
-print('EXECUTING SELL ORDER - GOLD')
-print('=' * 60)
-print()
-
-if tick is None:
-    print('[ERROR] Could not get GOLD price')
-    mt5.shutdown()
-    exit(1)
-
-print(f'Current Bid: {tick.bid}')
-print(f'Order: SELL 0.15 lots GOLD')
-print()
-
-# Place SELL order with IOC filling
-request = {
-    'action': mt5.TRADE_ACTION_DEAL,
-    'symbol': 'GOLD',
-    'volume': 0.15,
-    'type': mt5.ORDER_TYPE_SELL,
-    'price': tick.bid,
-    'sl': 4762.00,
-    'tp': 4546.00,
-    'deviation': 20,
-    'magic': 234000,
-    'comment': 'SELL signal - Trading analysis',
-    'type_time': mt5.ORDER_TIME_GTC,
-    'type_filling': mt5.ORDER_FILLING_IOC,
+# MT5 Configuration
+MT5_CONFIG = {
+    "login": 107069198,
+    "password": "D@5qZuUd",
+    "server": "Ava-Demo 1-MT5"
 }
 
-print('Sending order...')
-result = mt5.order_send(request)
+def connect():
+    """Initialize MT5 connection with retry"""
+    for i in range(3):
+        if mt5.initialize(**MT5_CONFIG):
+            return True
+        time.sleep(1)
+    return False
 
-if result:
-    print(f'Retcode: {result.retcode}')
-    print(f'Comment: {result.comment}')
-    print(f'Ticket: {result.order}')
+def get_symbol_info(symbol):
+    """Get symbol specifications"""
+    info = mt5.symbol_info(symbol)
+    if info is None:
+        return None
+    return {
+        "name": info.name,
+        "digits": info.digits,
+        "point": info.point,
+        "volume_min": info.volume_min,
+        "volume_max": info.volume_max,
+        "volume_step": info.volume_step,
+    }
 
-    if result.retcode == mt5.TRADE_RETCODE_DONE:
-        print()
-        print('[OK] SELL order executed successfully!')
-        print(f'  Volume: {result.volume} lots')
-        print(f'  Price: ${result.price:.2f}')
-        print(f'  Stop Loss: $4,762.00')
-        print(f'  Take Profit: $4,546.00')
-        print()
-        print('Trade Summary:')
-        print(f'  Entry: ${result.price:.2f}')
-        print(f'  Risk: 108 points (~$162)')
-        print(f'  Reward: 216 points (~$324)')
-        print(f'  R/R: 1:2.0')
+def execute_sell(symbol, volume, sl=0, tp=0, deviation=50, comment="SELL order"):
+    """
+    Execute SELL order with multiple filling mode fallback
+    Returns the result dict if successful, None otherwise
+    """
+    tick = mt5.symbol_info_tick(symbol)
+    if tick is None or tick.bid == 0:
+        print(f"[ERROR] No price data for {symbol}")
+        return None
+
+    filling_modes = [
+        (mt5.ORDER_FILLING_FOK, "FOK"),
+        (mt5.ORDER_FILLING_RETURN, "RETURN"),
+        (mt5.ORDER_FILLING_IOC, "IOC"),
+    ]
+
+    result = None
+    for filling_mode, mode_name in filling_modes:
+        request = {
+            "action": mt5.TRADE_ACTION_DEAL,
+            "symbol": symbol,
+            "volume": volume,
+            "type": mt5.ORDER_TYPE_SELL,
+            "price": tick.bid,
+            "sl": sl,
+            "tp": tp,
+            "deviation": deviation,
+            "magic": 234000,
+            "comment": comment,
+            "type_time": mt5.ORDER_TIME_GTC,
+            "type_filling": filling_mode,
+        }
+
+        result = mt5.order_send(request)
+
+        if result and result.retcode == mt5.TRADE_RETCODE_DONE:
+            print(f"[OK] {mode_name} filling mode succeeded")
+            return result
+        else:
+            retcode = result.retcode if result else "None"
+            comment = result.comment if result else "None"
+            print(f"  {mode_name}: Retcode {retcode} | {comment}")
+
+    return result
+
+def main():
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Universal MT5 SELL Order Helper")
+    parser.add_argument("--symbol", type=str, required=True, help="Trading symbol")
+    parser.add_argument("--volume", type=float, default=0.1, help="Lot size (default: 0.1)")
+    parser.add_argument("--sl", type=float, default=0, help="Stop Loss price (default: 0)")
+    parser.add_argument("--tp", type=float, default=0, help="Take Profit price (default: 0)")
+    parser.add_argument("--deviation", type=int, default=50, help="Max slippage (default: 50)")
+    parser.add_argument("--comment", type=str, default="SELL order", help="Order comment")
+    args = parser.parse_args()
+
+    # Connect to MT5
+    print("=" * 70)
+    print(f"EXECUTING SELL ORDER: {args.symbol}")
+    print("=" * 70)
+    print()
+
+    if not connect():
+        print("[ERROR] Failed to connect to MT5")
+        return
+
+    # Get symbol info
+    info = get_symbol_info(args.symbol)
+    if info is None:
+        print(f"[ERROR] Symbol {args.symbol} not found")
+        mt5.shutdown()
+        return
+
+    print(f"Symbol: {info['name']} | Digits: {info['digits']}")
+
+    # Get tick data
+    tick = mt5.symbol_info_tick(args.symbol)
+    if tick is None:
+        print("[ERROR] Failed to get tick data")
+        mt5.shutdown()
+        return
+
+    print(f"Current Bid: ${tick.bid:.{info['digits']}f}")
+    print(f"Order: SELL {args.volume} lots")
+    print()
+
+    # Check account
+    acc = mt5.account_info()
+    if acc:
+        print(f"Account: {acc.login} ({acc.name})")
+        print(f"Balance: ${acc.balance:.2f}")
+        print(f"Trade Allowed: {acc.trade_allowed}")
+    print()
+
+    # Execute order
+    result = execute_sell(args.symbol, args.volume, args.sl, args.tp, args.deviation, args.comment)
+
+    print()
+
+    if result and result.retcode == mt5.TRADE_RETCODE_DONE:
+        print("[OK] SELL order executed successfully!")
+        print(f"  Ticket: {result.order}")
+        print(f"  Volume: {result.volume} lots")
+        print(f"  Price: ${result.price:.{info['digits']}f}")
+
+        if args.sl > 0 or args.tp > 0:
+            print(f"  SL: ${args.sl:.{info['digits']}f}")
+            print(f"  TP: ${args.tp:.{info['digits']}f}")
     else:
-        print()
-        print(f'[ERROR] Order failed')
-        print(f'Full result: {result}')
-else:
-    print('[ERROR] order_send returned None')
+        print("[ERROR] Order execution failed")
+        if result:
+            print(f"  Retcode: {result.retcode}")
+            print(f"  Comment: {result.comment}")
 
-mt5.shutdown()
+    mt5.shutdown()
+    print()
+    print("Disconnected from MT5")
+
+if __name__ == "__main__":
+    main()
