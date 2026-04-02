@@ -19,6 +19,7 @@ mt5-trading-bot/
 ├── core/
 │   └── mt5_trading.py          # Core MT5 trading module
 ├── auto_trades/
+│   ├── universal_trade.py      # Universal script for ANY MT5 symbol
 │   ├── gold_trade.py           # Gold auto-execution script
 │   ├── silver_trade.py         # Silver auto-execution script
 │   ├── bitcoin_trade.py        # Bitcoin auto-execution script
@@ -75,6 +76,21 @@ python core/mt5_trading.py
 ```
 
 ### Execute Auto-Trades
+
+**Universal Script (Recommended - Works with ANY symbol):**
+
+```bash
+# Syntax
+python auto_trades/universal_trade.py --symbol SYMBOL --direction BUY/SELL --volume LOTS --sl PRICE --tp PRICE
+
+# Examples
+python auto_trades/universal_trade.py --symbol GOLD --direction SELL --volume 0.1 --sl 4762 --tp 4546
+python auto_trades/universal_trade.py --symbol BTCUSD --direction BUY --volume 0.01 --sl 63500 --tp 72800
+python auto_trades/universal_trade.py --symbol EURUSD --direction SELL --volume 0.5 --sl 1.0950 --tp 1.0850
+python auto_trades/universal_trade.py --symbol WTICrude --direction BUY --volume 0.1 --sl 76.50 --tp 85.00
+```
+
+**Asset-Specific Scripts (Pre-configured):**
 
 ```bash
 # Gold
@@ -137,6 +153,57 @@ Each auto-trade script includes:
 - **Take Profit**: Multiple targets (TP1, TP2)
 - **Position Size**: Calculated via Kelly Criterion (fractional)
 - **Risk/Reward**: Minimum 1:1.5
+
+## Universal Trade Script
+
+The `universal_trade.py` script uses the exact same proven method that successfully executed trades for Gold, Silver, and Bitcoin. It works with **ANY** symbol on MT5:
+
+### Features
+
+- **Auto-detects symbol specifications** (digits, point value, min/max lots)
+- **Validates SL/TP** for the trade direction (SL above entry for SELL, below for BUY)
+- **Tries multiple filling modes** (FOK, RETURN, IOC) until one succeeds
+- **Sets SL/TP automatically** using `TRADE_ACTION_SLTP`
+- **Verifies position** after execution
+
+### Command Line Arguments
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `--symbol` | Yes | Trading symbol (e.g., GOLD, BTCUSD, EURUSD, WTICrude) |
+| `--direction` | Yes | BUY or SELL |
+| `--volume` | Yes | Lot size (will be normalized to broker's requirements) |
+| `--sl` | Yes | Stop Loss price |
+| `--tp` | Yes | Take Profit price |
+| `--deviation` | No | Max slippage in points (default: 50) |
+
+### Examples
+
+```bash
+# Forex - EUR/USD SELL
+python auto_trades/universal_trade.py --symbol EURUSD --direction SELL --volume 0.5 --sl 1.0950 --tp 1.0850
+
+# Metals - Gold BUY
+python auto_trades/universal_trade.py --symbol GOLD --direction BUY --volume 0.1 --sl 4600 --tp 4750
+
+# Crypto - Bitcoin SELL
+python auto_trades/universal_trade.py --symbol BTCUSD --direction SELL --volume 0.05 --sl 70000 --tp 60000
+
+# Energy - WTI Crude BUY
+python auto_trades/universal_trade.py --symbol WTICrude --direction BUY --volume 0.1 --sl 76.50 --tp 85.00
+
+# Indices - US30 BUY
+python auto_trades/universal_trade.py --symbol US30 --direction BUY --volume 0.01 --sl 42000 --tp 44000
+```
+
+### SL/TP Validation
+
+The script automatically validates that your stops are correct for the trade direction:
+
+| Direction | Stop Loss | Take Profit |
+|-----------|-----------|-------------|
+| **BUY** | Must be **BELOW** entry | Must be **ABOVE** entry |
+| **SELL** | Must be **ABOVE** entry | Must be **BELOW** entry |
 
 ## Disclaimer
 
